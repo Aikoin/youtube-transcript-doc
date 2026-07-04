@@ -35,18 +35,21 @@ Input files:
         "bilingual": true                # true = gray-EN reference line + black-ZH line; false = ZH only
       }
 
-Layout produced (learned from user feedback):
+Layout produced (learned from user feedback — codex-clean palette):
   - Each topic is an <h2> with its title.
-  - Right under it, a 💡 callout summary card: a clickable timestamp (bold MM:SS,
-    jumps into the video) + "重点：" + a one-line gist of the section. This is the
-    ONLY card in the transcript — the turns themselves are flat paragraphs.
-  - Each speaker turn is a FLAT paragraph pair (NOT a card): a line leading with
-    the clickable timestamp + bold SPEAKER NAME + the English as a gray reference
-    line, then the Chinese on its own black line below. Monolingual = one line.
-  - SUBSTANTIVE turns (key=true) bold the Chinese (mono: the body) so the eye
-    lands on real answers; framing / setup questions stay unbolded.
+  - Right under it, a 💡 GREEN callout summary card: a clickable timestamp
+    (bold MM:SS, jumps into the video) + "重点" + a one-line gist of the section.
+    Green so it reads distinct from the blue info box and the yellow highlights.
+  - Each speaker turn is a two-column callout-card grid:
+      LEFT  = 💬 light-GRAY card, English body in gray text (secondary/source).
+      RIGHT = 🈶 light-BLUE card, Chinese body in default black (primary).
+    Each card has a small header line: timestamp (+ ⭐ if a highlight) then the
+    bold SPEAKER NAME. Monolingual = a single blue card.
+  - The three card ROLES are told apart by COLOR (green summary / gray EN /
+    blue ZH / yellow highlight), NOT by bold. Only speaker names are bold;
+    bodies are NEVER whole-paragraph-bolded — that was the noise users rejected.
   - highlights[] render as ⭐ yellow cards at the very top; a turn that contains a
-    highlight second also gets a small ⭐ before its timestamp.
+    highlight second also gets a small ⭐ in its card header.
 
 Usage:
   python build_doc.py turns.json content.json --outdir frags/
@@ -137,13 +140,15 @@ def main():
         title = s.get("title", "")
         y = [f'<h2>{s.get("emoji","")} {esc(title)}</h2>']
 
-        # per-section summary callout: clickable timestamp + 重点 one-liner
+        # per-section summary callout: clickable timestamp + 重点 one-liner.
+        # Uses a DISTINCT color (green) from the blue info box and yellow
+        # highlight cards, so the eye can tell the three card roles apart.
         if s.get("summary"):
             ts = hms(s["start"])
             y.append(
-                '<callout emoji="💡">'
+                '<callout emoji="💡" background-color="light-green" border-color="green">'
                 f'<p><a href="{jump(s["start"])}"><b>{ts}</b></a> '
-                f'<b>重点：</b> {esc(s["summary"])}</p></callout>'
+                f'<b>重点</b>　{esc(s["summary"])}</p></callout>'
             )
 
         for idx, t in groups[s["start"]]:
@@ -151,24 +156,47 @@ def main():
             en = (p.get("en") or "").strip()
             zh = (p.get("zh") or "").strip()
             sp = (p.get("speaker") or "").strip()
-            key = bool(p.get("key"))
             star = "⭐ " if idx in star_turns else ""
             ts_a = f'<a href="{jump(t["start"])}">[{t["ts"]}]</a>'
-            sp_html = f'<b>{esc(sp)}：</b>' if sp else ''
+            sp_html = f'<b>{esc(sp)}</b>' if sp else ''
 
-            # Flat-paragraph transcript body (NOT cards): the timestamp + speaker
-            # lead the turn; English is a gray reference line, Chinese is the
-            # primary black line below. Speaker names stay bold for scannability,
-            # but bodies are NOT whole-paragraph-bolded (that reads as noise) —
-            # the 重点 lives in the per-section 💡 callout above. (User rejected
-            # per-turn callout cards; only the section summary stays a card.)
+            # Two-column callout cards, codex-clean palette (learned from user
+            # feedback comparing our cluttered board to codex's tidy one):
+            #   - LEFT (EN): neutral light-GRAY card, body in gray text -> reads
+            #     as the secondary "source/reference" column.
+            #   - RIGHT (ZH): primary light-BLUE card, body in default black ->
+            #     reads as the main column you actually read.
+            #   Distinct card colors (gray vs blue) do the visual separation,
+            #   NOT bold. Only the speaker name is bold; bodies are NEVER
+            #   whole-paragraph-bolded (that was the noise the user rejected).
+            #   Timestamp + ⭐ live in a small header line at the top of each card.
             if bilingual:
-                y.append(f'<p>{star}{ts_a}　{sp_html}<span text-color="gray">{esc(en)}</span></p>')
-                if zh:
-                    y.append(f'<p>{esc(zh)}</p>')
+                head = f'<p>{star}{ts_a}</p>' if star else f'<p>{ts_a}</p>'
+                sp_line_en = f'<p>{sp_html}</p>' if sp else ''
+                sp_line_zh = f'<p>{sp_html}</p>' if sp else ''
+                en_card = (
+                    '<callout emoji="💬" background-color="light-gray">'
+                    f'{head}{sp_line_en}'
+                    f'<p><span text-color="gray">{esc(en)}</span></p></callout>'
+                )
+                zh_card = (
+                    '<callout emoji="🈶" background-color="light-blue" border-color="blue">'
+                    f'{head}{sp_line_zh}'
+                    f'<p>{esc(zh or en)}</p></callout>'
+                )
+                y.append(
+                    '<grid>'
+                    f'<column width-ratio="0.5">{en_card}</column>'
+                    f'<column width-ratio="0.5">{zh_card}</column>'
+                    '</grid>'
+                )
             else:
                 text = zh or en
-                y.append(f'<p>{star}{ts_a}　{sp_html}{esc(text)}</p>')
+                head = f'<p>{star}{ts_a}　{sp_html}</p>' if sp else f'<p>{star}{ts_a}</p>'
+                y.append(
+                    '<callout emoji="🈶" background-color="light-blue" border-color="blue">'
+                    f'{head}<p>{esc(text)}</p></callout>'
+                )
         open(os.path.join(args.outdir, f"sec_{i}.xml"), "w").write("\n".join(y))
 
     print(f"wrote intro.xml + {len(sections)} section fragments to {args.outdir}/")

@@ -42,7 +42,7 @@ Layout produced (learned from user feedback — codex-clean palette):
     Green so it reads distinct from the blue info box and the yellow highlights.
   - Each speaker turn is a two-column callout-card grid:
       LEFT  = 💬 light-GRAY card, English body in gray text (secondary/source).
-      RIGHT = 🈶 light-BLUE card, Chinese body in default black (primary).
+      RIGHT = 💬 light-BLUE card, Chinese body in default black (primary).
     Each card has a small header line: timestamp (+ ⭐ if a highlight) then the
     bold SPEAKER NAME. Monolingual = a single blue card.
   - The three card ROLES are told apart by COLOR (green summary / gray EN /
@@ -180,7 +180,7 @@ def main():
                     f'<p><span text-color="gray">{esc(en)}</span></p></callout>'
                 )
                 zh_card = (
-                    '<callout emoji="🈶" background-color="light-blue" border-color="blue">'
+                    '<callout emoji="💬" background-color="light-blue" border-color="blue">'
                     f'{head}{sp_line_zh}'
                     f'<p>{esc(zh or en)}</p></callout>'
                 )
@@ -194,7 +194,7 @@ def main():
                 text = zh or en
                 head = f'<p>{star}{ts_a}　{sp_html}</p>' if sp else f'<p>{star}{ts_a}</p>'
                 y.append(
-                    '<callout emoji="🈶" background-color="light-blue" border-color="blue">'
+                    '<callout emoji="💬" background-color="light-blue" border-color="blue">'
                     f'{head}<p>{esc(text)}</p></callout>'
                 )
         open(os.path.join(args.outdir, f"sec_{i}.xml"), "w").write("\n".join(y))

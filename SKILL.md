@@ -10,7 +10,8 @@ description: >-
   timeline, meeting-notes-style writeup, subtitle extraction, or a "watch this
   video and write it up" task — even if they don't say the word "skill". Also use
   it when they want to clean up / bilingualize / re-lay-out an existing video
-  transcript. Do NOT use it for local audio files (use a transcription tool) or
+  transcript, or to add a visual summary whiteboard distilling the key points.
+  Do NOT use it for local audio files (use a transcription tool) or
   for Feishu Minutes/妙记 (use the minutes skill).
 ---
 
@@ -18,12 +19,12 @@ description: >-
 
 把一条 YouTube（或带字幕的）视频，做成一篇**可读、可跳转、可沉淀**的飞书逐字稿文档。
 
-整条链路：**读到视频 → 抓 SRT → 解析成段 → 清洗+翻译 → 生成飞书文档**。
+整条链路：**读到视频 → 抓 SRT → 解析成段 → 清洗+翻译 → 生成飞书文档 →（可选）可视化总结白板**。
 
 ## 何时用
 用户丢来一个视频链接，想要逐字稿 / timeline / 会议纪要式整理 / 字幕提取 / 中英对照 / "帮我看看这个视频并整理出来"。
 
-## 五步流程
+## 流程
 
 ### 1. 拿到 video_id 和基本信息
 从 URL 提取 11 位 video id。若能顺手拿到标题、时长、嘉宾/发布者，记下来——写进文档头部信息框。
@@ -59,6 +60,16 @@ python scripts/build_doc.py turns.json content.json --outdir frags/
 用 lark-doc skill（`docs +create` 建文档写入 intro，再 `docs +update --command append` 逐节追加）。
 调用细节见 `references/publish-lark.md`。发布后把文档 URL 给用户。
 
+### 6.（可选）生成可视化总结白板
+用户常在拿到逐字稿后想再要一张**提炼重点的可视化图**嵌进同一篇文档。用
+[`beautiful-feishu-whiteboard`](https://github.com/zarazhangrui/beautiful-feishu-whiteboard) 的思路
+手工排 SVG（不是 Mermaid 自动布局），写成飞书可编辑白板。完整流程与踩坑见
+`references/whiteboard-summary.md`。
+
+**一条最关键、最容易翻车的铁律**：飞书白板**渲染时会把文字强制压成深色**，所以
+**所有文字都要放在浅色底（奶油/黄）上用深墨色**，彩色只用于边框/色条/方块标记/徽章，绝不把文字放到饱和色块上。
+本地 PNG 预览的文字颜色不可信，必须写入后用 `+query --output_as image` 回查**线上真图**再确认对比度。
+
 ## 迭代
 用户常会在文档里留**评论**再让你改。用 lark-doc 的 `+get-comments` 拉评论，逐条落实。
 若涉及断句错误——回到第 3 步用说话人 turn 重切，别在错误的分段上打补丁。
@@ -69,3 +80,4 @@ python scripts/build_doc.py turns.json content.json --outdir frags/
 - `references/fetch-srt.md` — 抓字幕降级链（重点）
 - `references/clean-translate.md` — 清洗/翻译/版式规范
 - `references/publish-lark.md` — lark-doc 建档与追加、拉评论
+- `references/whiteboard-summary.md` — 用 beautiful-feishu-whiteboard 生成可视化总结白板（含“文字必须上浅底”的踩坑）

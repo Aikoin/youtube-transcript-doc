@@ -19,7 +19,7 @@ description: >-
 
 把一条 YouTube（或带字幕的）视频，做成一篇**可读、可跳转、可沉淀**的飞书逐字稿文档。
 
-整条链路：**读到视频 → 抓 SRT → 解析成段 → 清洗+翻译 → 生成飞书文档 →（可选）可视化总结白板**。
+整条链路：**读到视频 → 抓 SRT → 解析成段 → 清洗+翻译 → 生成飞书文档 → 可视化总结白板（必做）**。
 
 ## 何时用
 用户丢来一个视频链接，想要逐字稿 / timeline / 会议纪要式整理 / 字幕提取 / 中英对照 / "帮我看看这个视频并整理出来"。
@@ -60,15 +60,15 @@ python scripts/build_doc.py turns.json content.json --outdir frags/
 用 lark-doc skill（`docs +create` 建文档写入 intro，再 `docs +update --command append` 逐节追加）。
 调用细节见 `references/publish-lark.md`。发布后把文档 URL 给用户。
 
-### 6.（可选）生成可视化总结白板
-用户常在拿到逐字稿后想再要一张**提炼重点的可视化图**嵌进同一篇文档。用
-[`beautiful-feishu-whiteboard`](https://github.com/zarazhangrui/beautiful-feishu-whiteboard) 的思路
-手工排 SVG（不是 Mermaid 自动布局），写成飞书可编辑白板。完整流程与踩坑见
-`references/whiteboard-summary.md`。
+### 6.（必做）生成可视化总结白板
+逐字稿发布后**必须**再产出一张**提炼重点的可视化总结白板**，嵌进同一篇文档——这一步不是可选项，是标准交付物的一部分。
 
-**一条最关键、最容易翻车的铁律**：飞书白板**渲染时会把文字强制压成深色**，所以
-**所有文字都要放在浅色底（奶油/黄）上用深墨色**，彩色只用于边框/色条/方块标记/徽章，绝不把文字放到饱和色块上。
-本地 PNG 预览的文字颜色不可信，必须写入后用 `+query --output_as image` 回查**线上真图**再确认对比度。
+**直接调用 `beautiful-feishu-whiteboard` skill 来画**（本环境已安装的专业绘图引擎，用 Skill 工具启动），不要自己手搓 SVG 排版逻辑。交给它：
+1. 从 `content.json` / turns 里提炼出 4–8 个**主题簇**、每簇 3–5 条要点（短句，不要搬逐字稿原句）；
+2. 把这些结构 + 已发布的飞书文档 `document_id` 传给该 skill，让它选构图模式、生成 SVG、写入白板、回查线上真图；
+3. 白板要**嵌进本篇逐字稿文档**，而不是新建一篇文档；**位置放在「⭐ 高光时刻」和「📝 完整逐字稿」之间**（不是尾部）——用 `block_insert_after` 插到高光区结尾的分割线块之后。
+
+具体的构图/配色/写入/回查细节由 `beautiful-feishu-whiteboard` 自己的 SKILL.md 负责；本 skill 只负责把提炼好的结构和目标文档交过去。补充踩坑见 `references/whiteboard-summary.md`。
 
 ## 迭代
 用户常会在文档里留**评论**再让你改。用 lark-doc 的 `+get-comments` 拉评论，逐条落实。
@@ -80,4 +80,4 @@ python scripts/build_doc.py turns.json content.json --outdir frags/
 - `references/fetch-srt.md` — 抓字幕降级链（重点）
 - `references/clean-translate.md` — 清洗/翻译/版式规范
 - `references/publish-lark.md` — lark-doc 建档与追加、拉评论
-- `references/whiteboard-summary.md` — 用 beautiful-feishu-whiteboard 生成可视化总结白板（含“文字必须上浅底”的踩坑）
+- `references/whiteboard-summary.md` — 可视化总结白板：交给 `beautiful-feishu-whiteboard` skill 来画（含“文字必须上浅底”的踩坑）

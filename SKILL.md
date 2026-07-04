@@ -45,16 +45,26 @@ python scripts/parse_srt.py transcript.srt --video-id <VIDEO_ID> --out turns.jso
 按 `references/clean-translate.md`：删语气词、删口吃重复、修 ASR 错误（人名/术语/公司名）、
 逐段翻译。近百段时拆 2–3 批用并行子 agent 处理，共享一张术语修正表，各自输出 `{index:{en,zh}}` 的 JSON，合并成一个 content 文件。
 
-内容备好后，按 `scripts/build_doc.py` 头部注释的结构拼一个 `content.json`（含 meta / sections 主题分节 / highlights 高光卡片 / paras 正文 / bilingual 开关），然后：
+内容备好后，按 `scripts/build_doc.py` 头部注释的结构拼一个 `content.json`，然后：
 ```bash
 python scripts/build_doc.py turns.json content.json --outdir frags/
 ```
 生成 `frags/intro.xml` 和 `frags/sec_0.xml … sec_N.xml`。
 
-**版式铁律**（沉淀自真实用户反馈，`build_doc.py` 已内置，别推翻）：
-- 标题朴素，不加"中英对照"之类标签；
-- 中英用**颜色**区分（英文灰、中文黑），不写 EN/ZH 字样；
-- **不整段高亮**，高光段只用 ⭐ 标记，黄色高亮留给顶部卡片；加粗/高亮的具体短句留给人工。
+`content.json` 的 schema（`build_doc.py` 头部有完整示例，别推翻）：
+- `meta`：标题、来源、视频链接、时长、嘉宾——写进头部信息框。标题朴素，不加"中英对照"之类标签。
+- `sections[]`：主题分节。`title` 用**双语** `"English / 中文"`；`summary` 是这一节的一句话「重点」概述（渲染成节标题下的 💡 卡片，带可点击时间戳）。
+- `highlights[]`：编辑精选的核心观点，渲染成顶部 ⭐ 黄色卡片。
+- `paras{}`：正文，以段索引为键。每段带 `speaker`（说话人名，加粗前缀）、`en`、`zh`，以及 `key` 布尔值。
+- `bilingual`：true = 每段渲染成 EN(💡) | ZH(🈶) 两列卡片网格；false = 单列中文卡片。
+
+**版式铁律**（沉淀自真实用户反馈 + 对标做得更好的同类产出，`build_doc.py` 已内置，别推翻）：
+- 标题朴素，中英不写 EN/ZH 字样；用 emoji（💡/🈶）区分左右两列语言。
+- **每段都标说话人**：发言人名加粗做前缀（`Federico：…`），让读者一眼看清谁在说，长对话尤其重要。
+- **实质性发言整段加粗**（`key: true`）：把真正给出答案/观点的回合加粗，让视线落在干货上；铺垫/提问的回合不加粗。加粗整段答案，不是零散短句。
+- **用 callout 卡片排版**：每个 turn 渲染成 callout 卡片（双语时是 EN|ZH 两列网格），比一堵 `<p>` 墙更易扫读。卡片用**朴素 callout**（不加 background-color / border-color），靠 emoji 区分即可。
+- 每节标题下加一张 💡「重点」卡片（可点击时间戳 + 一句话概述），先给读者本节主旨。
+- 高光段只用 ⭐ 标记，黄色高亮留给顶部 highlights 卡片。
 
 ### 5. 发布到飞书
 用 lark-doc skill（`docs +create` 建文档写入 intro，再 `docs +update --command append` 逐节追加）。

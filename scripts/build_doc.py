@@ -14,10 +14,10 @@ Input files:
             "guests": "..."              # optional
         },
         "sections": [                    # topical grouping, by start-second
-            # title is bilingual "English / 中文"; summary is the one-line 重点 gist
-            {"start": 0,   "title": "Opening Question / 开场问题", "emoji": "🎬",
+            # title is the section topic; summary is the one-line 重点 gist
+            {"start": 0,   "title": "开场问题", "emoji": "🎬",
              "summary": "一开场就把整期问题框定为：如何把私有上下文学进模型。"},
-            {"start": 59,  "title": "Always Training / 模型始终在训练", "emoji": "🧠",
+            {"start": 59,  "title": "模型始终在训练", "emoji": "🧠",
              "summary": "总论点：瓶颈不是原始智力，而是持续吸收并内化上下文。"}
         ],
         "highlights": [                  # editor-picked cards shown at the top
@@ -32,22 +32,21 @@ Input files:
             },
             ...
         },
-        "bilingual": true                # true = EN card + ZH card grid; false = ZH only
+        "bilingual": true                # true = gray-EN reference line + black-ZH line; false = ZH only
       }
 
-Layout produced (learned from a well-received reference transcript):
-  - Each topic is an <h2> with a BILINGUAL "English / 中文" title.
+Layout produced (learned from user feedback):
+  - Each topic is an <h2> with its title.
   - Right under it, a 💡 callout summary card: a clickable timestamp (bold MM:SS,
-    jumps into the video) + "重点：" + a one-line gist of the section.
-  - Each speaker turn renders as a 2-COLUMN <grid>: left = English inside a 💡
-    callout card, right = Chinese inside a 🈶 callout card. This "card" layout is
-    what makes the long transcript skimmable instead of a wall of <p>.
-  - Every turn is prefixed with the SPEAKER NAME in bold ("Jessy Lin: ...").
-  - SUBSTANTIVE turns are bolded (key=true) so the eye lands on the real answers;
-    framing / setup questions stay unbolded. Bold whole answer turns, not phrases.
-  - highlights[] still render as ⭐ yellow cards at the very top; a section turn
-    that contains a highlight second also gets a small ⭐ before its timestamp.
-  - Monolingual (bilingual=false): a single 💡 callout card per turn, ZH only.
+    jumps into the video) + "重点：" + a one-line gist of the section. This is the
+    ONLY card in the transcript — the turns themselves are flat paragraphs.
+  - Each speaker turn is a FLAT paragraph pair (NOT a card): a line leading with
+    the clickable timestamp + bold SPEAKER NAME + the English as a gray reference
+    line, then the Chinese on its own black line below. Monolingual = one line.
+  - SUBSTANTIVE turns (key=true) bold the Chinese (mono: the body) so the eye
+    lands on real answers; framing / setup questions stay unbolded.
+  - highlights[] render as ⭐ yellow cards at the very top; a turn that contains a
+    highlight second also gets a small ⭐ before its timestamp.
 
 Usage:
   python build_doc.py turns.json content.json --outdir frags/
@@ -114,15 +113,6 @@ def main():
     def speaker_prefix(sp):
         return f'{esc(sp)}：' if sp else ''
 
-    def turn_body(text, sp, key):
-        """One line of body text: bold speaker + (bold body if key else plain)."""
-        sp_html = f'<b>{esc(sp)}：</b>' if sp else ''
-        body = esc(text)
-        if key:
-            return f'<p>{sp_html}<b>{body}</b></p>'
-        # even when not a key turn, keep the speaker name bold for scanability
-        return f'<p>{sp_html}{body}</p>'
-
     # ---- intro fragment ----
     x = [f'<title>{esc(meta.get("title","逐字稿"))}</title>']
     info = []
@@ -164,33 +154,21 @@ def main():
             key = bool(p.get("key"))
             star = "⭐ " if idx in star_turns else ""
             ts_a = f'<a href="{jump(t["start"])}">[{t["ts"]}]</a>'
+            sp_html = f'<b>{esc(sp)}：</b>' if sp else ''
 
+            # Flat-paragraph transcript body (NOT cards): the timestamp + speaker
+            # lead the turn; English is a gray reference line, Chinese is the
+            # primary black line below. Speaker names stay bold for scannability,
+            # but bodies are NOT whole-paragraph-bolded (that reads as noise) —
+            # the 重点 lives in the per-section 💡 callout above. (User rejected
+            # per-turn callout cards; only the section summary stays a card.)
             if bilingual:
-                en_body = turn_body(en, sp, key)
-                zh_body = turn_body(zh, sp, key) if zh else ""
-                # 2-column grid of callout cards: EN (💡) | ZH (🈶).
-                # Plain callouts (no background/border) render cleanest; the emoji
-                # alone distinguishes the two languages. Valid callout fills are
-                # only `gray` / `light-{color}` / `medium-{color}` — don't invent others.
-                y.append(
-                    '<grid>'
-                    '<column width-ratio="0.5">'
-                    '<callout emoji="💡">'
-                    f'<p>{star}{ts_a}</p>{en_body}</callout>'
-                    '</column>'
-                    '<column width-ratio="0.5">'
-                    '<callout emoji="🈶">'
-                    f'{zh_body or "<p></p>"}</callout>'
-                    '</column>'
-                    '</grid>'
-                )
+                y.append(f'<p>{star}{ts_a}　{sp_html}<span text-color="gray">{esc(en)}</span></p>')
+                if zh:
+                    y.append(f'<p>{esc(zh)}</p>')
             else:
                 text = zh or en
-                body = turn_body(text, sp, key)
-                y.append(
-                    '<callout emoji="💡">'
-                    f'<p>{star}{ts_a}</p>{body}</callout>'
-                )
+                y.append(f'<p>{star}{ts_a}　{sp_html}{esc(text)}</p>')
         open(os.path.join(args.outdir, f"sec_{i}.xml"), "w").write("\n".join(y))
 
     print(f"wrote intro.xml + {len(sections)} section fragments to {args.outdir}/")

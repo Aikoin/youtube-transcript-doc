@@ -25,11 +25,24 @@ Input files:
         ],
         "paras": {                       # index-as-string -> a turn's content
             "0": {
-                "speaker": "Jessy Lin",  # speaker name shown bold at the head of the turn
-                "en": "cleaned english",
-                "zh": "中文翻译",
-                "key": true              # true = a substantive turn -> bold the body
+                # A turn can hold MULTIPLE speakers (ASR / the ">>" marker often
+                # merges a question + its answer into one cue). List each speaker
+                # sub-turn in `segs`, in order.
+                # SPEAKER-NAME POLICY (important): only put a `speaker` name when
+                # the subtitles actually carried speaker labels, or you are truly
+                # confident. If the SRT had only ">>" turn markers and no names,
+                # who-said-what is a GUESS — do NOT invent names. Leave `speaker`
+                # empty; build_doc renders a neutral bold "— " dash at each
+                # switch so the reader sees a speaker change without us asserting
+                # a wrong identity.
+                "segs": [
+                    {"speaker": "", "en": "...", "zh": "..."},
+                    {"speaker": "", "en": "...", "zh": "..."}
+                ],
+                "key": true              # true = a substantive turn
             },
+            # Back-compat: a single-speaker turn may still use the flat form
+            # {"speaker","en","zh","key"} with no `segs`.
             ...
         },
         "bilingual": true                # true = gray-EN reference line + black-ZH line; false = ZH only
@@ -153,12 +166,41 @@ def main():
 
         for idx, t in groups[s["start"]]:
             p = paras.get(str(idx), {})
-            en = (p.get("en") or "").strip()
-            zh = (p.get("zh") or "").strip()
-            sp = (p.get("speaker") or "").strip()
             star = "⭐ " if idx in star_turns else ""
             ts_a = f'<a href="{jump(t["start"])}">[{t["ts"]}]</a>'
-            sp_html = f'<b>{esc(sp)}</b>' if sp else ''
+
+            # A turn may contain MULTIPLE speakers: ASR (and the ">>" marker)
+            # often merges a question + its answer into one cue, so a single
+            # card can hold several speaker sub-turns. `segs` is the list of
+            # {speaker, en, zh} sub-turns in order. If absent, fall back to the
+            # flat single-speaker fields — backward compatible.
+            segs = p.get("segs")
+            if not segs:
+                segs = [{"speaker": p.get("speaker", ""),
+                         "en": p.get("en", ""), "zh": p.get("zh", "")}]
+
+            def seg_paras(seg, gray, first):
+                # one <p> per sub-turn. Speaker attribution policy:
+                #   - If the seg HAS a name (subtitles carried speakers, or you
+                #     are confident), bold it as an inline prefix "Name：".
+                #   - If it has NO name (the common case: the SRT only had ">>"
+                #     turn markers, no speaker labels — so who-said-what is a
+                #     GUESS we refuse to fake), we do NOT invent a name. Instead
+                #     every switched-to sub-turn gets a neutral bold "— " dash so
+                #     the reader can see the speaker changed without us asserting
+                #     a wrong identity. The first sub-turn gets no prefix.
+                #   NEVER whole-paragraph-bold; only the name/dash prefix is bold.
+                sp = (seg.get("speaker") or "").strip()
+                body = (seg.get(("en" if gray else "zh")) or seg.get("en") or "").strip()
+                if sp:
+                    name = f'<b>{esc(sp)}：</b>'
+                elif not first:
+                    name = '<b>— </b>'
+                else:
+                    name = ''
+                if gray:
+                    return f'<p>{name}<span text-color="gray">{esc(body)}</span></p>'
+                return f'<p>{name}{esc(body)}</p>'
 
             # Two-column callout cards, codex-clean palette (learned from user
             # feedback comparing our cluttered board to codex's tidy one):
@@ -169,20 +211,21 @@ def main():
             #   Distinct card colors (gray vs blue) do the visual separation,
             #   NOT bold. Only the speaker name is bold; bodies are NEVER
             #   whole-paragraph-bolded (that was the noise the user rejected).
+            #   Every speaker switch inside the card gets its own bold inline
+            #   name prefix (codex style) so merged multi-speaker cues no longer
+            #   collapse into one anonymous blob.
             #   Timestamp + ⭐ live in a small header line at the top of each card.
             if bilingual:
                 head = f'<p>{star}{ts_a}</p>' if star else f'<p>{ts_a}</p>'
-                sp_line_en = f'<p>{sp_html}</p>' if sp else ''
-                sp_line_zh = f'<p>{sp_html}</p>' if sp else ''
+                en_body = "".join(seg_paras(sg, True, i == 0) for i, sg in enumerate(segs))
+                zh_body = "".join(seg_paras(sg, False, i == 0) for i, sg in enumerate(segs))
                 en_card = (
                     '<callout emoji="💬" background-color="light-gray">'
-                    f'{head}{sp_line_en}'
-                    f'<p><span text-color="gray">{esc(en)}</span></p></callout>'
+                    f'{head}{en_body}</callout>'
                 )
                 zh_card = (
                     '<callout emoji="💬" background-color="light-blue" border-color="blue">'
-                    f'{head}{sp_line_zh}'
-                    f'<p>{esc(zh or en)}</p></callout>'
+                    f'{head}{zh_body}</callout>'
                 )
                 y.append(
                     '<grid>'
@@ -191,11 +234,11 @@ def main():
                     '</grid>'
                 )
             else:
-                text = zh or en
-                head = f'<p>{star}{ts_a}　{sp_html}</p>' if sp else f'<p>{star}{ts_a}</p>'
+                head = f'<p>{star}{ts_a}</p>'
+                zh_body = "".join(seg_paras(sg, False, i == 0) for i, sg in enumerate(segs))
                 y.append(
                     '<callout emoji="💬" background-color="light-blue" border-color="blue">'
-                    f'{head}<p>{esc(text)}</p></callout>'
+                    f'{head}{zh_body}</callout>'
                 )
         open(os.path.join(args.outdir, f"sec_{i}.xml"), "w").write("\n".join(y))
 

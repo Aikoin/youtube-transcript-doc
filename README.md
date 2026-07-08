@@ -2,7 +2,7 @@
 
 A [Mira](https://mira.byteintl.net) / Claude **skill** that turns a YouTube video into a polished, readable transcript document — end to end.
 
-**Pipeline:** watch/read a YouTube video → scrape its SRT subtitles (past YouTube's anti-bot blocks) → parse into clean speaker-turn paragraphs → strip filler words & fix ASR errors → translate (e.g. English→Chinese bilingual) → add clickable timestamp jump-links → surface highlight-moment cards → publish to a Feishu/Lark doc → *(optional)* hand-compose a visual summary whiteboard distilling the key points.
+**Pipeline:** watch/read a YouTube video → scrape its SRT subtitles (past YouTube's anti-bot blocks) → parse into clean speaker-turn paragraphs → strip filler words & fix ASR errors → translate (e.g. English→Chinese bilingual) → add clickable timestamp jump-links → surface highlight-moment cards → publish to a Feishu/Lark doc → plan & deliver a visual summary whiteboard distilling the key points. The whiteboard is a **mandatory** final deliverable, not optional.
 
 ## Why this exists
 
@@ -10,14 +10,14 @@ Auto-generated captions are raw: filler words, stutters, mis-transcribed names, 
 
 - **Speaker-turn segmentation** (`>>` markers) so every paragraph is a complete thought, never a half-sentence.
 - **A subtitle-fetch fallback chain** because direct YouTube APIs (`youtube-transcript-api`, `yt-dlp`) get IP-blocked. The reliable path: third-party subtitle sites → the `download.subtitle.to` blob trick → browser scrape → ask the user.
-- **Layout rules distilled from real user feedback**: plain title, color (not "EN/ZH" labels) to distinguish languages, ⭐ markers instead of whole-paragraph highlighting, curated highlight cards on top, clickable timestamps throughout.
-- **An optional visual-summary whiteboard step** built on [beautiful-feishu-whiteboard](https://github.com/zarazhangrui/beautiful-feishu-whiteboard) — hand-composed SVG, not auto-layout. Hard-won rule baked in: **Feishu forces whiteboard text dark on render, so all text must sit on light backgrounds** (accents only for borders/bars/markers), and you must verify against the live board render, not the local PNG.
+- **Layout rules distilled from real user feedback (v3)**: plain title (no "EN/ZH" or "bilingual" labels), a **plain-paragraph body** — not a wall of cards — with Chinese as the main line and the English original as a gray quote-block beneath only the segments worth showing; callout cards reserved for the few things that deserve emphasis (per-section 重点, top highlights, the head info box); a neutral 🗣️ prefix at speaker switches instead of inventing names; curated highlight cards on top; clickable timestamps throughout.
+- **A mandatory visual-summary whiteboard step**: this skill first **plans** the board (content clusters + narrative spine, style mood, composition skeleton), then hands that brief to [beautiful-feishu-whiteboard](https://github.com/zarazhangrui/beautiful-feishu-whiteboard) to draw it — hand-composed SVG, not auto-layout. Two hard-won rules baked in: **Feishu forces whiteboard text dark on render, so all text must sit on light backgrounds** (accents only for borders/bars/markers), verified against the live board render (not the local PNG); and **re-fetch the live `<whiteboard>` token before writing**, since a doc `overwrite` orphans the old board block.
 
 ## Layout
 
 ```
 youtube-transcript-doc/
-├── SKILL.md                      # the skill: workflow (5 core steps + optional whiteboard)
+├── SKILL.md                      # the skill: full workflow (5 transcript steps + a mandatory whiteboard step)
 ├── scripts/
 │   ├── parse_srt.py              # SRT → speaker-turn paragraphs (drops pure filler)
 │   └── build_doc.py              # paragraphs + translation → Lark XML fragments
@@ -25,7 +25,7 @@ youtube-transcript-doc/
     ├── fetch-srt.md              # subtitle-scraping fallback chain (the tricky part)
     ├── clean-translate.md        # cleaning / translation / layout rules
     ├── publish-lark.md           # lark-doc create / append / get-comments
-    └── whiteboard-summary.md     # optional visual summary board (text-on-light rule + pitfalls)
+    └── whiteboard-summary.md     # mandatory visual summary board: plan (structure/style/composition) then hand off; text-on-light + live-token pitfalls
 ```
 
 ## Usage

@@ -19,7 +19,8 @@ description: >-
 
 把一条 YouTube（或带字幕的）视频，做成一篇**可读、可跳转、可沉淀**的飞书逐字稿文档。
 
-整条链路：**读到视频 → 抓 SRT → 解析成段 → 清洗+翻译 → 生成飞书文档 → 可视化总结白板（必做）**。
+整条链路：**读到视频 → 抓 SRT → 解析成段 → 清洗+翻译 → 生成飞书文档 → 规划并交付可视化总结白板（必做）**。
+（末步分两半：本 skill 先规划白板的**内容结构/风格/构图**，再交给 `beautiful-feishu-whiteboard` skill 画。）
 
 ## 何时用
 用户丢来一个视频链接，想要逐字稿 / timeline / 会议纪要式整理 / 字幕提取 / 中英对照 / "帮我看看这个视频并整理出来"。
@@ -83,12 +84,22 @@ python scripts/build_doc.py turns.json content.json --outdir frags/
 ### 6.（必做）生成可视化总结白板
 逐字稿发布后**必须**再产出一张**提炼重点的可视化总结白板**，嵌进同一篇文档——这一步不是可选项，是标准交付物的一部分。
 
-**直接调用 `beautiful-feishu-whiteboard` skill 来画**（本环境已安装的专业绘图引擎，用 Skill 工具启动），不要自己手搓 SVG 排版逻辑。交给它：
-1. 从 `content.json` / turns 里提炼出 4–8 个**主题簇**、每簇 3–5 条要点（短句，不要搬逐字稿原句）；
-2. 把这些结构 + 已发布的飞书文档 `document_id` 传给该 skill，让它选构图模式、生成 SVG、写入白板、回查线上真图；
-3. 白板要**嵌进本篇逐字稿文档**，而不是新建一篇文档；**位置放在「⭐ 高光时刻」和「📝 完整逐字稿」之间**（不是尾部）——用 `block_insert_after` 插到高光区结尾的分割线块之后。
+**分工铁律：本 skill 先想清楚「画什么、什么风格、怎么画」，再把这份 brief 交给 `beautiful-feishu-whiteboard` skill 去画（渲染/写入画板/回查线上真图）。** 别跳过规划直接甩要点——那样出来的是「PPT 罗列」而非「关系地图」，风格构图全靠绘图 skill 猜；也别反过来去改 `beautiful-feishu-whiteboard` 的内部逻辑，它是通用引擎，本 skill 只是它的调用方。
 
-具体的构图/配色/写入/回查细节由 `beautiful-feishu-whiteboard` 自己的 SKILL.md 负责；本 skill 只负责把提炼好的结构和目标文档交过去。补充踩坑见 `references/whiteboard-summary.md`。
+**先规划（6.1，交给绘图 skill 前必须先定下三件事，写成一份 brief）：**
+1. **内容结构**：从最新 `content.json` / turns 提炼 4–8 个**主题簇**、每簇 3–5 条要点（短句，不搬原句），每簇标时间戳，编号①②③…；**并想清楚簇之间的叙事主线**（递进 / 收束 / 并列），骨架跟着主线走，不是把框摆成网格。
+2. **风格基调**：按视频调性定一句话偏好（冷静克制 / 暖色有节奏）+ 2–3 个强调色的用法（分区/标记不同「幕」）。**把「想要什么感觉」讲清楚，让绘图 skill 从它自己的 35 套色板里挑**，不替它指定具体色板名。
+3. **构图骨架**：递进→单主轴+分支；收束→多路汇聚到一个决定框；并列→分栏对比。连线**只画真实关系**（依赖/产出/对应），不因「挨着」就连；给「终点/升华」框更强视觉权重。
+
+**再交付（6.2）：** 把这份 brief + 已发布文档的 `document_id` 交给 `beautiful-feishu-whiteboard`（用 Skill 工具启动），要求：
+- **嵌进本篇逐字稿文档**，不新建文档；**位置放在「⭐ 高光时刻」和「📝 完整逐字稿」之间**（不是尾部）——用 `block_insert_after` 插到高光区结尾的分割线块之后；
+- 走完它自己的「渲染 → 检查 → 写入画板 → 回查线上真图」全流程。
+
+**两条必盯的坑**（详见 `references/whiteboard-summary.md`）：
+- **写图前重新 `docs +fetch` 拿当前生效的 `<whiteboard token>`**：若文档在插板后又被 `overwrite` 整篇重写，旧白板块会被换成新块、旧 token 变孤儿——往孤儿 token 写图，本地查得到、用户在文档里却看不到更新。
+- **文字必须放浅色底用深墨色**：飞书线上会把文字压深色，别信本地 PNG 预览的字色，写入后回查线上真图再确认对比度。
+
+构图模式实现、配色体系、形状规范、写入/回查细节由 `beautiful-feishu-whiteboard` 自己的 SKILL.md 负责；本 skill 到 6.1 的 brief 为止。
 
 ## 迭代
 用户常会在文档里留**评论**再让你改。用 lark-doc 的 `+get-comments` 拉评论，逐条落实。
@@ -100,4 +111,4 @@ python scripts/build_doc.py turns.json content.json --outdir frags/
 - `references/fetch-srt.md` — 抓字幕降级链（重点）
 - `references/clean-translate.md` — 清洗/翻译/版式规范
 - `references/publish-lark.md` — lark-doc 建档与追加、拉评论
-- `references/whiteboard-summary.md` — 可视化总结白板：交给 `beautiful-feishu-whiteboard` skill 来画（含“文字必须上浅底”的踩坑）
+- `references/whiteboard-summary.md` — 可视化总结白板：先规划（内容结构/风格/构图）再交给 `beautiful-feishu-whiteboard` skill 画（含“写前重取白板 token”“文字必须上浅底”两条踩坑）
